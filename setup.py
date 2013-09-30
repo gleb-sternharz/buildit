@@ -9,5 +9,5 @@ setup (name = 'buildit',
        author = "Chris McDonough",
        author_email="chrism@agendaless.com",
        packages = ['buildit', ],
-       package_dir = {'buildit':'.'},
+       package_dir = {'buildit':'buildit'},
        )
