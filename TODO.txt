@@ -1,3 +1,7 @@
+- Fix test failures
+
+=== Original ToDo
+
 - Tasks should require local namespace references for namespace-local
   names in commands, targets, and workdirs.
 
