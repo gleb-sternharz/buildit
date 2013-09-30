@@ -23,8 +23,8 @@ import re
 import shutil
 import tempfile
 
-from task import ShellCommand
-from resolver import MissingDependencyError
+from .task import ShellCommand
+from .resolver import MissingDependencyError
 
 class Download(ShellCommand):
     def __init__(self, filename, url, remove_on_error=True):
@@ -61,7 +61,7 @@ class CVSCheckout:
     def execute(self, task):
         env_munged = False
         try:
-            if not os.environ.has_key('CVS_RSH'):
+            if 'CVS_RSH' not in os.environ:
                 os.environ['CVS_RSH'] = 'ssh'
                 env_munged = True
             os.system(self.represent(task))
@@ -217,7 +217,7 @@ class InFileWriter:
 
     outfile is created with permissions *mode* (default 0755).
     """
-    def __init__(self, infile, outfile, mode=0755):
+    def __init__(self, infile, outfile, mode=0o755):
         self.infile = infile
         self.outfile = outfile
         self.mode = mode
@@ -272,7 +272,7 @@ class Substitute:
         try:
             search = re.compile(search_re, re.MULTILINE)
         except:
-            print 'search_re %s could not be compiled' % search_re
+            print('search_re %s could not be compiled' % search_re)
             raise
 
         bakfilename = '%s%s' % (filename, backup_ext)

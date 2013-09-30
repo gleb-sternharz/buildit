@@ -1,8 +1,6 @@
-import UserDict
 import os
-import warnings
 import sys
-import resolver
+from . import resolver
 
 class TaskError(ValueError):
     pass
@@ -87,7 +85,7 @@ class Task:
         L = []
         for namespace in self.namespaces:
             val = self.interpolate(namespace)
-            if not hasattr(val, '__iter__'):
+            if isinstance(val, str):
                 # allow either lists or space-separated tokens in a single
                 # string
                 val = val.strip().split()
@@ -107,7 +105,7 @@ class Task:
 
     def interpolate_kw(self, **kw):
         result = {}
-        for k, v in kw.items():
+        for k, v in list(kw.items()):
             result[k] = self.interpolate(v)
         return result
 
@@ -272,10 +270,9 @@ class Task:
                 self.output('running "%s"' % command.represent(self))
                 status = command.execute(self)
                 if status:
-                    raise TaskError, (
+                    raise TaskError(
                         'Task "%s": command "%s" failed with status code '
-                        '"%s"' % (name, command, status)
-                        )
+                        '"%s"' % (name, command, status))
         finally:
             os.chdir(old_workdir)
             if VERBOSE:
@@ -294,9 +291,9 @@ class Task:
                         )
                 raise TargetNotCreatedError('\n'.join(errormsg))
             for target in self.getTargets():
-               if target is not FALSE_CONDITION:
-                   # touch the target file
-                   os.utime(target, None)
+                if target is not FALSE_CONDITION:
+                    # touch the target file
+                    os.utime(target, None)
                    
         return not self.needsCompletion()
 
@@ -338,7 +335,7 @@ class ShellCommand:
 def command_helper(seq):
     L = []
     for item in seq:
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             # if the item is a string, it's a shell command
             item = ShellCommand(item)
         # otherwise its assumed to be a callable that has represent, execute,

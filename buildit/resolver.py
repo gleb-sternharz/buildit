@@ -61,9 +61,9 @@ def resolve(sections, defaults=None, overrides=None):
 
     # overrides is a dict of section names to override dictionaries
     # XXX this really should feel better
-    for secname, odict in overrides.items():
-        if sections_copy.has_key(secname):
-            for k, v in odict.items():
+    for secname, odict in list(overrides.items()):
+        if secname in sections_copy:
+            for k, v in list(odict.items()):
                 sections_copy[secname][k] = v
 
     # we need to process the sections in a resolveable order based on the
@@ -85,10 +85,10 @@ def section_resolution_order(sections):
     order = []
     items = []
 
-    for section_name in sections.keys():
+    for section_name in list(sections.keys()):
         items.append(section_name)
         options = sections[section_name]
-        for k, v in options.items():
+        for k, v in list(options.items()):
             try:
                 tokens = TOKEN_RE.findall(v)
             except TypeError:
@@ -159,7 +159,7 @@ def option_resolution_order(options, section_name=None):
     items = []
     index = {}
 
-    for k, v in options.items():
+    for k, v in list(options.items()):
         items.append(k)
         try:
             tokens = TOKEN_RE.findall(v)
@@ -236,7 +236,7 @@ def topological_sort(items, partial_order, section_name=None,
     """
 
     def add_node(graph, node):
-        if not graph.has_key(node):
+        if node not in graph:
             graph[node] = [0] # 0 = number of arcs coming into this node
 
     def add_arc(graph, fromnode, tonode):
@@ -256,22 +256,22 @@ def topological_sort(items, partial_order, section_name=None,
             # add_arc in order to be able to produce errror reports
             # that aggregate both local and default error conditions
             # in callers.
-            if not graph.has_key(a):
+            if a not in graph:
                 graph[a] = [0]
-            elif not graph.has_key(b):
+            elif b not in graph:
                 graph[b] = [0]
             else:
                 add_arc(graph, a, b)
         else:
             add_arc(graph, a, b)
 
-    roots = [ node for (node, nodeinfo) in graph.items() if nodeinfo[0] == 0 ]
+    roots = [ node for (node, nodeinfo) in list(graph.items()) if nodeinfo[0] == 0 ]
 
-    sorted = []
+    sorted_items = []
 
     while len(roots) != 0:
         root = roots.pop()
-        sorted.append(root)
+        sorted_items.append(root)
         for child in graph[root][1:]:
             graph[child][0] = graph[child][0] - 1
             if graph[child][0] == 0:
@@ -281,8 +281,8 @@ def topological_sort(items, partial_order, section_name=None,
     if len(graph) != 0:
         # loop in input
         cycledeps = {}
-        for k, v in graph.items():
+        for k, v in list(graph.items()):
             cycledeps[(section_name, k)] = v[1:]
         raise CyclicDependencyError(cycledeps)
 
-    return sorted
+    return sorted_items

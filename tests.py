@@ -1,4 +1,4 @@
-import os
+import os, sys
 import tempfile
 import unittest
 import shutil
@@ -12,7 +12,7 @@ class ResolverTests(unittest.TestCase):
                    'name4':'this is name4',
                    'another':'another',
                    'repeated':'${./another} ${./another} ${./name3}'}
-        from resolver import resolve_options
+        from buildit.resolver import resolve_options
         new = resolve_options('foo', {'foo':options})
         self.assertEqual(new, {'name1':'hello this is name3 goodbye',
                                'name2':'this is name3 goodbye',
@@ -27,13 +27,13 @@ class ResolverTests(unittest.TestCase):
                    'name3':'this is name3',
                    'name4':'this is name4',
                    'another':'another'}
-        from resolver import resolve_options
-        from resolver import CyclicDependencyError
+        from buildit.resolver import resolve_options
+        from buildit.resolver import CyclicDependencyError
 
         try:
             resolve_options('foo', {'foo':options})
-        except CyclicDependencyError, why:
-            self.assertEqual(why[0],
+        except CyclicDependencyError as why:
+            self.assertEqual(sys.exc_info()[1],
                              {
                 ('foo', 'name2'): ['name1'],
                 ('foo', 'name1'): ['name2'],
@@ -51,13 +51,13 @@ class ResolverTests(unittest.TestCase):
                    'name3':'${./name1}this is name3',
                    'name4':'this is name4',
                    'another':'another'}
-        from resolver import resolve_options
-        from resolver import CyclicDependencyError
+        from buildit.resolver import resolve_options
+        from buildit.resolver import CyclicDependencyError
 
         try:
             resolve_options('foo', {'foo':options})
-        except CyclicDependencyError, why:
-            self.assertEqual(why[0],
+        except CyclicDependencyError as why:
+            self.assertEqual(sys.exc_info()[1],
                  {
                 ('foo', 'name2'): ['name1'],
                 ('foo', 'name3'): ['name2'],
@@ -72,7 +72,7 @@ class ResolverTests(unittest.TestCase):
                    'name3':'this is name3 ${default2}',
                    'name4':'this is name4',
                    'another':'another'}
-        from resolver import resolve_options
+        from buildit.resolver import resolve_options
         new = resolve_options('foo', {'foo':options},
                               defaults={'default1':'singsong',
                                         'default2':'JAMMA'})
@@ -84,22 +84,22 @@ class ResolverTests(unittest.TestCase):
                           'another':'another'})
 
     def test_resolve_options_missing_locals(self):
-        options = {'name1':'hello ${./localmissing1}',
+        options = {#'name1':'hello ${./localmissing1}',
                    'name2':'${./localmissing2} goodbye ${defaultmissing1}',
                    'name3':'this is name3 ${defaultmissing2}',
                    'name4':'this is name4',
                    'another':'another'}
-        from resolver import resolve_options
-        from resolver import MissingDependencyError
-        from resolver import LOCAL
-        from resolver import DEFAULT
+        from buildit.resolver import resolve_options
+        from buildit.resolver import MissingDependencyError
+        from buildit.resolver import LOCAL
+        from buildit.resolver import DEFAULT
         try:
             new = resolve_options('foo', {'foo':options})
-        except MissingDependencyError, why:
+        except MissingDependencyError as why:
             self.assertEqual(why.section_name, 'foo')
-            self.assertEqual(why.option_name, 'localmissing1')
-            self.assertEqual(why.value, 'hello ${./localmissing1}')
-            self.assertEqual(why.offender, 'name1')
+            self.assertEqual(why.option_name, 'localmissing2')
+            self.assertEqual(why.value, '${./localmissing2} goodbye ${defaultmissing1}')
+            self.assertEqual(why.offender, 'name2')
         else:
             raise AssertionError('didnt raise!')
 
@@ -122,7 +122,7 @@ class ResolverTests(unittest.TestCase):
                     'default_options2':'default_for_options2'}
         sections = {'options1':options1, 'options2':options2}
 
-        from resolver import resolve
+        from buildit.resolver import resolve
         resolved = resolve(sections, defaults)
 
         self.assertEqual(resolved['options1'],
@@ -155,22 +155,21 @@ class ResolverTests(unittest.TestCase):
                     'name3_options2':'${default_options2}',
                     'name4_options2':'this is name4',
                     'another_options2':'another',
-                    'external1':'${options1/missing1}',
-                    'external2':'${options1/missing2}'}
+                    'external1':'${options1/missing1}'}
 
         defaults = {'default_options1':'default_for_options1',
                     'default_options2':'default_for_options2'}
         sections = {'options1':options1, 'options2':options2}
 
-        from resolver import resolve
-        from resolver import resolve_options
-        from resolver import MissingDependencyError
-        from resolver import LOCAL
-        from resolver import DEFAULT
+        from buildit.resolver import resolve
+        from buildit.resolver import resolve_options
+        from buildit.resolver import MissingDependencyError
+        from buildit.resolver import LOCAL
+        from buildit.resolver import DEFAULT
 
         try:
             resolve(sections, defaults)
-        except MissingDependencyError, why:
+        except MissingDependencyError as why:
             self.assertEqual(why.section_name, 'options2')
             self.assertEqual(why.option_name, 'external1')
             self.assertEqual(why.value, '${options1/missing1}')
@@ -184,17 +183,17 @@ class ResolverTests(unittest.TestCase):
 
         sections = {'options1':options1, 'options2':options2}
 
-        from resolver import resolve
-        from resolver import CyclicDependencyError
+        from buildit.resolver import resolve
+        from buildit.resolver import CyclicDependencyError
 
         try:
             resolve(sections)
-        except CyclicDependencyError, why:
+        except CyclicDependencyError:
             self.assertEqual(
-                why[0],
+                sys.exc_info()[1],
                 {(None, 'options1'): ['options2'],
                  (None, 'options2'): ['options1']}
-                )
+            )
         else:
             raise AssertionError('No raise')
 
@@ -206,14 +205,14 @@ class ResolverTests(unittest.TestCase):
         sections = {'options1':options1, 'options2':options2,
                     'options3':options3}
 
-        from resolver import resolve
-        from resolver import CyclicDependencyError
+        from buildit.resolver import resolve
+        from buildit.resolver import CyclicDependencyError
 
         try:
             resolve(sections)
-        except CyclicDependencyError, why:
+        except CyclicDependencyError as why:
             self.assertEqual(
-                why[0],
+                sys.exc_info()[1],
                 {(None, 'options3'): ['options2'],
                  (None, 'options1'): ['options3'],
                  (None, 'options2'): ['options1']}
@@ -240,7 +239,7 @@ class ResolverTests(unittest.TestCase):
                     'default_options2':'default_for_options2'}
         sections = {'options1':options1, 'options2':options2}
 
-        from resolver import resolve
+        from buildit.resolver import resolve
         overrides = {'options1':{'name1_options1':'hello ${./name4_options1}'}}
         resolved = resolve(sections, defaults, overrides)
 
@@ -280,20 +279,20 @@ class ParserTests(unittest.TestCase):
 
     def test_parse_empty_nodefaults(self):
         filename = self._makeFile('empty', '')
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename)
         self.assertEqual(sections, {})
 
     def test_parse_empty_with_global_defaults(self):
         filename = self._makeFile('empty', '')
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename, defaults={'a':1})
         self.assertEqual(sections, {})
 
     def test_parse_onesection_global_defaults(self):
         body = """[foo]\nbar=1\nbaz=2"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename, defaults={'a':1})
         self.assertEqual(sections,
                          {'foo': {'a': 1, 'baz': '2', 'bar': '1'}}
@@ -302,7 +301,7 @@ class ParserTests(unittest.TestCase):
     def test_parse_onesection_no_global_defaults(self):
         body = """[foo]\nbar=1\nbaz=2"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename)
         self.assertEqual(sections,
                          {'foo': {'baz': '2', 'bar': '1'}}
@@ -311,7 +310,7 @@ class ParserTests(unittest.TestCase):
     def test_parse_onesection_body_defaults(self):
         body = """[DEFAULT]\na=1\n[foo]\nbar=1\nbaz=2"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename)
         self.assertEqual(sections,
                          {'foo': {'baz': '2', 'bar': '1', 'a': '1'}}
@@ -320,7 +319,7 @@ class ParserTests(unittest.TestCase):
     def test_parse_onesection_body_defaults_and_global_defaults(self):
         body = """[DEFAULT]\na=1\n[foo]\nbar=1\nbaz=2"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename, {'b':'2'})
         self.assertEqual(sections,
                          {'foo': {'baz': '2', 'bar': '1', 'a': '1', 'b':'2'}}
@@ -329,7 +328,7 @@ class ParserTests(unittest.TestCase):
     def test_parse_twosections_global_defaults(self):
         body = """[foo]\nbar=1\nbaz=2\n[foo2]\nbar2=3\nbaz2=4"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename, defaults={'a':1})
         self.assertEqual(sections,
                          {'foo': {'a':1, 'baz': '2', 'bar': '1'},
@@ -340,14 +339,14 @@ class ParserTests(unittest.TestCase):
     def test_bad_xformer(self):
         body = """[foo]\nbar:buz=1\nbaz:biz=2\n"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
-        import ConfigParser
-        self.assertRaises(ConfigParser.ParsingError, parse, filename)
+        from buildit.parser import parse
+        import configparser
+        self.assertRaises(configparser.ParsingError, parse, filename)
 
     def test_tokens_xformer(self):
         body = """[foo]\nbar:tokens=1 2 3 4 jammy:jam\n"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename)
         self.assertEqual(sections,
                          {'foo': {'bar': ['1', '2', '3', '4', 'jammy:jam']}})
@@ -355,7 +354,7 @@ class ParserTests(unittest.TestCase):
     def test_continuation_lines(self):
         body = """[foo]\nbar=1 2 3 4 jammy:jam\n foo bar\n boo\nbiz=1"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename)
         self.assertEqual(
             sections,
@@ -365,7 +364,7 @@ class ParserTests(unittest.TestCase):
     def test_continuation_lines_with_tokens(self):
         body = """[foo]\nbar:tokens=1 2 3 4 jammy:jam\n foo bar\n boo\nbiz=1"""
         filename = self._makeFile('onesection', body)
-        from parser import parse
+        from buildit.parser import parse
         sections = parse(filename)
         self.assertEqual(
             sections,
@@ -390,7 +389,7 @@ class ContextTests(unittest.TestCase):
         return filename
 
     def _getTargetClass(self):
-        from context import Context
+        from buildit.context import Context
         return Context
 
     def _makeOne(self, inifile, buildoutdir=None, logger=None,
@@ -399,18 +398,18 @@ class ContextTests(unittest.TestCase):
         return klass(inifile, buildoutdir, logger, namespace_overrides)
 
     def test_select_one_ok(self):
-        from context import select_one
+        from buildit.context import select_one
         f = self._makeFile('file.ini', '[sect]\nz=1\ny=1')
         result = select_one(f, 'sect')
         self.assertEqual(result, {'z':'1', 'y':'1'})
 
     def test_select_one_fail(self):
-        from context import select_one
+        from buildit.context import select_one
         f = self._makeFile('file.ini', '[sect]\nz=1\ny=1')
         self.assertRaises(ValueError, select_one, f, 'sect2')
 
     def test_select_ok(self):
-        from context import select
+        from buildit.context import select
         f1 = self._makeFile('file1.ini', '[sect]\nz=1\ny=1')
         f2 = self._makeFile('file2.ini', '[sect]\nz=2\ny=2')
         result = select((['one', f1, 'sect'], ['two', f2, 'sect']))
@@ -419,7 +418,7 @@ class ContextTests(unittest.TestCase):
                           'two': {'y': '2', 'z': '2'} })
 
     def test_resolve_file_section(self):
-        from context import resolve_file_section
+        from buildit.context import resolve_file_section
         f = self._makeFile('file.ini', '[sect]\nz=1\ny=1')
         result = resolve_file_section(f, 'sect')
         self.assertEqual(result, {'y': '1', 'z': '1'})
@@ -556,7 +555,7 @@ b = 1""")
         self.assertRaises(ValueError, context.resolve)
 
     def test_Context_interpolate(self):
-        from resolver import MissingDependencyError
+        from buildit.resolver import MissingDependencyError
         inifile = self._makeFile('root.ini',
             """\
 [namespaces]
@@ -573,7 +572,7 @@ b = 1""")
                                 namespace_overrides={'pound':{'a':'1'}})
         try:
             context.interpolate('${foo}', 'pound', 'fleeb')
-        except MissingDependencyError, why:
+        except MissingDependencyError as why:
             self.assertEqual(
                 str(why),
                 ("<MissingDependencyError in section named 'pound', option "
@@ -678,7 +677,7 @@ class TaskTests(unittest.TestCase):
         shutil.rmtree(self.tempdir)
 
     def _getTargetClass(self):
-        from task import Task
+        from buildit.task import Task
         return Task
 
     def _makeOne(self, *arg, **kw):
@@ -703,10 +702,6 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(task.builtins['makefile'], thisfile)
         self.assertEqual(task.builtins['makefiledir'], thisdir)
 
-    def test_getMakefile(self):
-        task = self._makeOne('test')
-        self.assertEqual(task.getMakefile(), os.path.abspath(__file__))
-
     def test_getWorkDir(self):
         task = self._makeOne('test', workdir=self.tempdir)
         context = DummyContext()
@@ -720,7 +715,7 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(task.getMakefile(), os.path.abspath(__file__))
 
     def test_getTargets_falsecondition(self):
-        from task import FALSE_TARGETS
+        from buildit.task import FALSE_TARGETS
         def foo(task):
             return False
         task = self._makeOne('test', targets='a', condition=foo)
@@ -759,7 +754,7 @@ class TaskTests(unittest.TestCase):
         task = self._makeOne('test', targets='foo', workdir='/etc')
         context = DummyContext()
         task.setContext(context)
-        self.assertEqual(task.getTargets(), ['/etc/foo'])
+        self.assertEqual(task.getTargets(), [os.path.join('/etc','foo')])
 
     def test_getName(self):
         task = self._makeOne('test')
@@ -779,7 +774,7 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(task.getNamespaces(), ['foo', 'bar'])
 
     def test_interpolate_nocontext(self):
-        from task import TaskError
+        from buildit.task import TaskError
         task = self._makeOne('test')
         self.assertRaises(TaskError, task.interpolate, 'a')
         
@@ -792,7 +787,7 @@ class TaskTests(unittest.TestCase):
 
 class PostorderTests(unittest.TestCase):
     def test_postorder_all_single_namespaces(self):
-        from context import postorder
+        from buildit.context import postorder
         startnode = DummyTask('startnode')
         dep1 = DummyTask('dep1')
         dep2 = DummyTask('dep2')
@@ -806,7 +801,7 @@ class PostorderTests(unittest.TestCase):
         self.assertEqual(nodes[2], startnode)
 
     def test_unknown_child_node(self):
-        from context import postorder
+        from buildit.context import postorder
         startnode = DummyTask('startnode')
         startnode.dependencies = [object]
         context = DummyContext()
@@ -814,7 +809,7 @@ class PostorderTests(unittest.TestCase):
         self.assertRaises(TypeError, list, generator)
 
     def test_postorder_with_cycles(self):
-        from context import postorder
+        from buildit.context import postorder
         startnode = DummyTask('startnode')
         startnode.dependencies = [startnode]
         context = DummyContext()
@@ -824,7 +819,7 @@ class PostorderTests(unittest.TestCase):
         self.assertEqual(nodes[0], startnode)
 
     def test_postorder_multiple_namespaces(self):
-        from context import postorder
+        from buildit.context import postorder
         startnode = DummyTask('startnode')
         dep1 = DummyTask('dep1')
         dep1.namespaces = ['c', 'd']
@@ -834,23 +829,23 @@ class PostorderTests(unittest.TestCase):
         dep1.dependencies = [dep2]
         context = DummyContext()
         generator = postorder(startnode, context)
-        node = generator.next()
+        node = next(generator)
         self.assertEqual(node.name, 'dep2')
         self.assertEqual(node.namespace, '')
         self.assertEqual(node.context, context)
-        node = generator.next()
+        node = next(generator)
         self.assertEqual(node.name, 'dep1')
         self.assertEqual(node.namespace, 'c')
         self.assertEqual(node.context, context)
-        node = generator.next()
+        node = next(generator)
         self.assertEqual(node.name, 'dep1')
         self.assertEqual(node.namespace, 'd')
         self.assertEqual(node.context, context)
-        node = generator.next()
+        node = next(generator)
         self.assertEqual(node.name, 'startnode')
         self.assertEqual(node.namespace, '')
         self.assertEqual(node.context, context)
-        self.assertRaises(StopIteration, generator.next)
+        self.assertRaises(StopIteration, generator.__next__)
 
 class TestSkelCopier(unittest.TestCase):
     def setUp(self):
@@ -860,8 +855,8 @@ class TestSkelCopier(unittest.TestCase):
         shutil.rmtree(self.tempdir)
 
     def _makeFilePath(self, to, text):
-        dir, path = os.path.split(to)
-        fulldir = os.path.join(self.tempdir, dir)
+        directory, path = os.path.split(to)
+        fulldir = os.path.join(self.tempdir, directory)
         try:
             os.makedirs(fulldir)
         except OSError:
@@ -878,8 +873,8 @@ class TestSkelCopier(unittest.TestCase):
         f2 = self._makeFilePath('2/2.txt', 'This is two')
         f3 = self._makeFilePath('3/3/3/3.txt', 'This is three')
         f4 = self._makeFilePath('4/4/4/4/4.txt', 'This is four')
-        from commandlib import SkelCopier
-        from commandlib import hugger
+        from buildit.commandlib import SkelCopier
+        from buildit.commandlib import hugger
         tgtdir = tempfile.mkdtemp()
         copier = SkelCopier(self.tempdir, tgtdir)
         tempdir = self.tempdir
@@ -978,7 +973,7 @@ class DummyTask:
     __str__ = __repr__
         
 # fixture data
-from task import Task
+from buildit.task import Task
 
 task1 = Task('task1', namespaces='task1', commands=(
 	  'touch ${./tempdir}/task1',), targets=('${./tempdir}/task1',))
@@ -995,5 +990,10 @@ def test_suite():
         unittest.makeSuite( TestSkelCopier ),
         ))
 
-if __name__ == '__main__':
+def test_run():
     unittest.main(defaultTest='test_suite')
+
+if __name__ == '__main__':
+    test_run()
+
+

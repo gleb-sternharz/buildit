@@ -1,7 +1,7 @@
 import re
-import ConfigParser
+import configparser
 
-class BuilditConfigParser(ConfigParser.RawConfigParser):
+class BuilditConfigParser(configparser.RawConfigParser):
 
     # we override the OPTCRE expression below to only consider '=' a
     # separator (not = and :).
@@ -58,7 +58,7 @@ class BuilditConfigParser(ConfigParser.RawConfigParser):
                     sectname = mo.group('header')
                     if sectname in self._sections:
                         cursect = self._sections[sectname]
-                    elif sectname == ConfigParser.DEFAULTSECT:
+                    elif sectname == configparser.DEFAULTSECT:
                         cursect = self._defaults
                     else:
                         cursect = {'__name__': sectname}
@@ -67,7 +67,7 @@ class BuilditConfigParser(ConfigParser.RawConfigParser):
                     optname = None
                 # no section header in the file?
                 elif cursect is None:
-                    raise ConfigParser.MissingSectionHeaderError(fpname,
+                    raise configparser.MissingSectionHeaderError(fpname,
                                                                  lineno, line)
                 # an option line?
                 else:
@@ -95,7 +95,7 @@ class BuilditConfigParser(ConfigParser.RawConfigParser):
                         # raised at the end of the file and will contain a
                         # list of all bogus lines
                         if not e:
-                            e = ConfigParser.ParsingError(fpname)
+                            e = configparser.ParsingError(fpname)
                         e.append(lineno, repr(line))
         # if any parsing errors occurred, raise an exception
         if e:
@@ -118,7 +118,7 @@ def typexform(optname, optval, fpname, lineno, line):
     optname, xformername = optname.split(':', 1)
     xformer = xforms.get(xformername)
     if xformer is None:
-        e = ConfigParser.ParsingError(fpname)
+        e = configparser.ParsingError(fpname)
         e.append(lineno, repr(line))
         raise e
     return optname, xformer(optval), xformername
@@ -137,6 +137,9 @@ def parse(filename, defaults=None):
     parser.readfp(fp)
 
     for section in parser.sections():
-        sections[section] = dict(parser.items(section))
+        items_dict = dict(parser.items(section))
+        if "__name__" in items_dict:
+            items_dict.pop("__name__", None);
+        sections[section] = items_dict
         
     return sections

@@ -1,11 +1,11 @@
 import re
 import os
-import pwd
+import getpass
 import sys
 import logging
 
-import parser
-import resolver
+from . import parser
+from . import resolver
 
 try:
     from distutils.util import get_platform
@@ -57,7 +57,7 @@ class Context:
         builtins = {
             'cwd':os.path.abspath(os.getcwd()),
             'userhome':os.path.expanduser('~'),
-            'username':pwd.getpwuid(os.getuid())[0],
+            'username':getpass.getuser(),
             'buildoutdir':buildoutdir,
             'platform':platform
             }
@@ -93,7 +93,7 @@ class Context:
             self.warn('No [namespaces] section in inifile %s ' % inifile)
             namespaces = {}
 
-        for ns_name, value in namespaces.items():
+        for ns_name, value in list(namespaces.items()):
             mo = VERSIONFINDER(value)
             if mo is None:
                 section_name = DEFAULT_NAMESPACE
@@ -124,7 +124,7 @@ class Context:
     def resolve(self):
         if self._resolved is None:
             selections = select(self.namespace_selections)
-            for ns_name, D in selections.items():
+            for ns_name, D in list(selections.items()):
                 overrides = self.namespace_overrides.get(ns_name, {})
                 D.update(overrides)
             self._resolved = resolver.resolve(selections, self.globals)
@@ -169,7 +169,7 @@ class Context:
         filename = self.inifile
         sections = parser.parse(filename)
         tasks = []
-        for sname, section in sections.items():
+        for sname, section in list(sections.items()):
             if sname.endswith(':instance'):
                 instancename = sname[:-9]
                 task = section.get('buildit_task')
@@ -180,6 +180,7 @@ class Context:
                 if order is None:
                     self.warn('buildit: WARNING instance %r has no '
                               'buildit_order' % sname)
+                    order = -1
                 mo = VERSIONFINDER(task)
                 if mo is not None:
                     ns_name = mo.groups()[0]
@@ -191,10 +192,10 @@ class Context:
                     task = importable_name(dottedname)
                     ns_name = task.namespaces[0]
                 overrides = []
-                for name, value in section.items():
+                for name, value in list(section.items()):
                     if name != 'buildit_task':
                         overrides.append((ns_name, name, value))
-                tasks.append((order, instancename, task, overrides))
+                tasks.append((int(order), instancename, task, overrides))
         tasks.sort()
         for order, instancename, task, overrides in tasks:
             for ns_name, name, value in overrides:
@@ -224,7 +225,7 @@ class Software:
         self.overrides[(ns_name, k)] = v
 
     def install(self):
-        for (ns_name, k), v in self.overrides.items():
+        for (ns_name, k), v in list(self.overrides.items()):
             self.context.set_override(ns_name, k, v)
         if self.context.check(self.task):
             self.context.run(self.task)
@@ -274,8 +275,8 @@ def importable_name(name):
                 package = __import__(n, g, g, component)
         return package
     except ImportError:
-        import traceback, cStringIO
-        IO = cStringIO.StringIO()
+        import traceback, io
+        IO = io.StringIO()
         traceback.print_exc(file=IO)
         raise ValueError(
             'The object named by %r could not be imported\n%s' %  (
